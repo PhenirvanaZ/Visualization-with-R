@@ -1,0 +1,187 @@
+---
+title: "ECON7930 Assignment1"
+author: "ZHAI Rui"
+date: "2022/3/22"
+output: html_document
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+rm(list=ls())
+setwd(here::here())
+```
+
+
+```{r}
+library(pacman)
+p_load("ggplot2", "tidyverse", "sf", "maptools","readr")
+```
+
+
+# Opening dataset
+```{r}
+WHR_2021 <- read_csv("D:/DABE/ECON7930/World Happiness Report/DataForFigure2.1WHR2021C2.csv")
+
+```
+
+
+# World map
+```{r}
+p_load("tigris")
+worldmap <- st_read("D:/DABE/ECON7930/Worldmap/World_Countries__Generalized_.shp")
+colnames(WHR_2021)[1] <- "Country_name"
+colnames(WHR_2021)[3] <- "Ladder_score"
+WHR_map <- geo_join(worldmap, WHR_2021, "COUNTRY", "Country_name")
+WHR_map <- WHR_map[,-1]
+ggplot(data = WHR_map) +
+  geom_sf(aes(fill = Ladder_score), color="white", size=0.3) +
+  scale_fill_viridis_c(option = "magma", trans = "sqrt")+
+  ggtitle("World Happiness Index Map") 
+  
+ggsave("World Happiness Index Map.png", width = 10, height = 6)
+```
+
+
+#Interactive Map
+```{r}
+p_load("tmap", "leaflet")
+
+WHR_tmap <- tm_shape(WHR_map) +
+  tm_polygons("Ladder_score",
+              style="equal", 
+              title="World Happiness Report 2021")
+  
+WHR_tmap
+tmap_save(WHR_tmap, "World Happiness Index 2021.html")
+```
+
+
+#Joint population data and plot
+```{r}
+colnames(WHR_map)[12] <- "Logged_GDP_per_capita"
+
+pop_2021 <- read_csv("world population/2021_population.csv")
+WHR_map2 <- geo_join(WHR_map, pop_2021, "COUNTRY", "country")
+colnames(WHR_map2)[28] <- "population_2021"
+    
+```
+
+
+#Plot Graph
+```{r}
+ggplot(WHR_map2, aes(x=Logged_GDP_per_capita, y=Ladder_score, size=population_2021, color=Ladder_score)) +
+  scale_color_gradientn(colours =rainbow(10))+
+  geom_point(alpha = .3) +
+  theme(legend.position = c(0.93, 0.38))+
+  labs(
+    title = 'Countries Happiness Report 2021',
+    subtitle = 'A scatter plot of GDP per capita versus happiness index, 2021.',
+    caption = 'Data: World Happiness Report',
+    x = 'Logged GDP per capita ($)', 
+    y = 'Ladder Score 2021',
+    size = 'Population',
+    color = 'Ladder_score'
+  )+
+annotate(
+  geom = "text",
+  x = 11500, y = 8100,
+  label = "High Income,\n High Happiness",
+  size = 3,
+  lineheight = .9) +
+  annotate(
+    geom = "curve",
+    x = 11400, y = 7900,
+    xend = 11050, yend = 7700,
+    curvature = 0,
+    arrow = arrow(length = unit(0.3, "lines"), type = "closed"))+
+  annotate(
+  geom = "text",
+  x = 8250, y = 2950,
+  label = "Low Income,\n Low Happiness",
+  size = 3,
+  lineheight = .9) +
+  annotate(
+    geom = "curve",
+    x = 8200, y = 2700,
+    xend = 7820, yend = 2570,
+    curvature = 0,
+    arrow = arrow(length = unit(0.3, "lines"), type = "closed"))+
+  annotate(
+  geom = "text",
+  x = 6800, y = 5630,
+  label = "Low Income,\n Medium Happiness",
+  size = 3,
+  lineheight = .9) +
+  annotate(
+    geom = "curve",
+    x = 6700, y = 5400,
+    xend = 7050, yend = 5200,
+    curvature = 0,
+    arrow = arrow(length = unit(0.3, "lines"), type = "closed"))+
+  annotate(
+  geom = "text",
+  x = 10200, y = 3880,
+  label = "High Income,\n Low Happiness",
+  size = 3,
+  lineheight = .9) +
+  annotate(
+    geom = "curve",
+    x = 10100, y = 3700,
+    xend = 9850, yend = 3500,
+    curvature = 0,
+    arrow = arrow(length = unit(0.3, "lines"), type = "closed"))+
+  annotate(
+  geom = "text",
+  x = 7520, y = 2520,
+  label = "Afghanistan",
+  size = 2,
+  lineheight = .9, color = "black")+
+  annotate(
+  geom = "text",
+  x = 9780, y = 3380,
+  label = "Botswana",
+  size = 2,
+  lineheight = .9, color = "black")+
+  annotate(
+  geom = "text",
+  x = 7180, y = 5200,
+  label = "Niger",
+  size = 2,
+  lineheight = .9, color = "black")+
+  annotate(
+  geom = "text",
+  x = 10800, y = 7950,
+  label = "Finland",
+  size = 2,
+  lineheight = .9, color = "black")
+
+
+ggsave("World Happiness Plot.png", width = 10, height = 6)
+
+```
+
+
+#Lolipop Graph
+```{r}
+p_load("hrbrthemes")
+ggplot(WHR_map2) +
+  scale_color_gradientn(colours =rainbow(7))+
+        geom_segment(aes(x = `lowerwhisker`, y = COUNTRY, xend = `upperwhisker`, yend = COUNTRY, color = Ladder_score)) +
+        geom_point(aes(x=`upperwhisker`, y=COUNTRY,color = Ladder_score))+
+        geom_point(aes(x=`lowerwhisker`, y=COUNTRY,color = Ladder_score))+
+  labs(y = NULL,
+       x = NULL,
+       title = "Countries Happiness Range",
+       subtitle = "Whisker Range of Different Countries in World Happiness Report 2021")+ 
+  theme(plot.title = element_text(size = 24,  face = "bold"),
+        plot.subtitle = element_text(size = 16),
+        plot.caption = element_text(size = 14),
+        axis.text.y = element_text(size =6),
+        axis.text.x = element_text(size =10)) +
+  theme(legend.position = c(0.95, 0.1),
+        legend.title = element_blank())
+  theme_minimal()
+
+ggsave("Countries Happiness Score Range.png", width = 12, height = 25)
+```
+
